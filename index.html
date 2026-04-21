@@ -1,32 +1,47 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Lease Charges Calculator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <link rel="stylesheet" href="style.css">
+
+  <!-- IMPORTANT: defer ensures DOM loads before script runs -->
+  <script src="script.js" defer></script>
 </head>
 
 <body>
 
-<h1>Lease Charges Calculator</h1>
+  <div class="container">
 
-<label>Property</label>
-<select id="property"></select>
+    <h1>Lease Charges Calculator</h1>
 
-<label>Monthly Rent</label>
-<input type="number" id="rent">
+    <!-- PROPERTY DROPDOWN -->
+    <label for="property">Property</label>
+    <select id="property">
+      <option value="">Loading properties...</option>
+    </select>
 
-<label>Move-in Date</label>
-<input type="date" id="moveIn">
+    <!-- MONTHLY RENT -->
+    <label for="rent">Monthly Rent</label>
+    <input type="number" id="rent" placeholder="Enter monthly rent">
 
-<label>Number of Pets</label>
-<input type="number" id="pets" value="0">
+    <!-- MOVE-IN DATE -->
+    <label for="moveIn">Move-in Date</label>
+    <input type="date" id="moveIn">
 
-<button onclick="calculate()">Calculate</button>
+    <!-- PETS -->
+    <label for="pets">Number of Pets</label>
+    <input type="number" id="pets" value="0" min="0">
 
-<h2>Breakdown</h2>
-<div id="result"></div>
+    <!-- CALCULATE BUTTON -->
+    <button onclick="calculate()">Calculate</button>
 
-<script src="script.js"></script>
+    <!-- RESULT OUTPUT -->
+    <div id="result"></div>
+
+  </div>
 
 </body>
 </html>
