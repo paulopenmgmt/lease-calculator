@@ -1,13 +1,31 @@
+/* =========================
+   CONFIG
+========================= */
+
+const CONFIG = {
+  SHEET_API_URL: "https://sheetdb.io/api/v1/6w8tib81woerj",
+
+  PET_RENT: 40,
+  PET_DEPOSIT: 300
+};
+
+/* =========================
+   STATE
+========================= */
+
 let properties = {};
 let sheetData = [];
 
 /* =========================
-   1. LOAD PROPERTIES FROM SHEET
+   LOAD DATA
 ========================= */
 
 async function loadProperties() {
   try {
-    const res = await fetch(https://sheetdb.io/api/v1/6w8tib81woerj);
+    const res = await fetch(CONFIG.SHEET_API_URL);
+
+    if (!res.ok) throw new Error("Failed to fetch sheet data");
+
     sheetData = await res.json();
 
     const select = document.getElementById("property");
@@ -18,13 +36,14 @@ async function loadProperties() {
     sheetData.forEach(row => {
       const name = row["Property Name"];
 
-      const charges =
-        row[
-          "Charge type and amount to be added (If charge already appears in the recurring charges after moving tenant in no action needed)"
-        ] || "";
+      const charges = row[
+        "Charge type and amount to be added (If charge already appears in the recurring charges after moving tenant in no action needed)"
+      ] || "";
+
+      if (!name) return;
 
       properties[name] = {
-        charges: charges
+        rawCharges: charges
       };
 
       const option = document.createElement("option");
@@ -34,44 +53,45 @@ async function loadProperties() {
       select.appendChild(option);
     });
 
-    console.log("Properties loaded:", properties);
   } catch (err) {
-    console.error("Error loading sheet:", err);
+    console.error("Sheet load error:", err);
+    alert("Failed to load property data. Check API.");
   }
 }
 
 /* =========================
-   2. PARSE MULTI-LINE CHARGES
+   CHARGE PARSER (ROBUST)
 ========================= */
 
 function parseCharges(text) {
-  if (!text) return [];
+  if (!text || typeof text !== "string") return [];
 
   return text
     .split("\n")
-    .map(line => line.trim())
-    .filter(line => line.includes(":"))
+    .map(l => l.trim())
+    .filter(l => l.includes(":"))
     .map(line => {
-      const [type, value] = line.split(":");
+      const splitIndex = line.indexOf(":");
 
       return {
-        type: type.trim(),
-        value: value.trim()
+        type: line.slice(0, splitIndex).trim(),
+        value: line.slice(splitIndex + 1).trim()
       };
     });
 }
 
 /* =========================
-   3. CALCULATE UTILITIES
+   UTILITIES CALCULATOR
 ========================= */
 
-function calculateUtilities(chargesText) {
-  const charges = parseCharges(chargesText);
+function calculateUtilities(rawText) {
+  const charges = parseCharges(rawText);
 
   let total = 0;
 
   charges.forEach(c => {
     const num = parseFloat(c.value.replace(/[^0-9.]/g, ""));
+
     if (!isNaN(num)) total += num;
   });
 
@@ -79,11 +99,15 @@ function calculateUtilities(chargesText) {
 }
 
 /* =========================
-   4. PRORATED RENT
+   PRORATION ENGINE
 ========================= */
 
 function calculateProratedRent(rent, moveInDate) {
+  if (!rent || !moveInDate) return 0;
+
   const date = new Date(moveInDate);
+
+  if (isNaN(date)) return 0;
 
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -97,55 +121,77 @@ function calculateProratedRent(rent, moveInDate) {
 }
 
 /* =========================
-   5. MAIN CALCULATOR
+   MAIN CALCULATION ENGINE
 ========================= */
 
 function calculate() {
-  const propertyName = document.getElementById("property").value;
-  const rent = parseFloat(document.getElementById("rent").value);
-  const moveIn = document.getElementById("moveIn").value;
-  const pets = parseInt(document.getElementById("pets").value) || 0;
+  try {
+    const propertyName = document.getElementById("property").value;
+    const rent = parseFloat(document.getElementById("rent").value);
+    const moveIn = document.getElementById("moveIn").value;
+    const pets = parseInt(document.getElementById("pets").value) || 0;
 
-  if (!propertyName || !rent || !moveIn) {
-    alert("Please fill all required fields.");
-    return;
+    if (!propertyName || !rent || !moveIn) {
+      alert("Please fill all required fields.");
+      return;
+    }
+
+    const property = properties[propertyName];
+
+    if (!property) {
+      alert("Property not found in dataset.");
+      return;
+    }
+
+    const proratedRent = calculateProratedRent(rent, moveIn);
+
+    const utilitiesTotal = calculateUtilities(property.rawCharges);
+
+    const petRent = pets * CONFIG.PET_RENT;
+    const petDeposit = pets * CONFIG.PET_DEPOSIT;
+
+    const total =
+      proratedRent +
+      utilitiesTotal +
+      petRent +
+      petDeposit;
+
+    renderResult({
+      propertyName,
+      proratedRent,
+      utilitiesTotal,
+      petRent,
+      petDeposit,
+      total
+    });
+
+  } catch (err) {
+    console.error("Calculation error:", err);
+    alert("Something went wrong during calculation.");
   }
+}
 
-  const property = properties[propertyName];
+/* =========================
+   UI RENDERER
+========================= */
 
-  const proratedRent = calculateProratedRent(rent, moveIn);
-
-  const utilitiesTotal = calculateUtilities(property.charges);
-
-  const petRent = pets * 40;       // adjust if needed
-  const petDeposit = pets * 300;   // adjust if needed
-
-  const total =
-    proratedRent +
-    utilitiesTotal +
-    petRent +
-    petDeposit;
-
-  /* =========================
-     OUTPUT BREAKDOWN
-  ========================= */
-
+function renderResult(data) {
   document.getElementById("result").innerHTML = `
-    <h3>Breakdown</h3>
+    <h3>Lease Breakdown</h3>
 
-    <p><b>Property:</b> ${propertyName}</p>
+    <p><b>Property:</b> ${data.propertyName}</p>
 
-    <p><b>Prorated Rent:</b> $${proratedRent.toFixed(2)}</p>
+    <p><b>Prorated Rent:</b> $${data.proratedRent.toFixed(2)}</p>
 
-    <p><b>Utilities Total:</b> $${utilitiesTotal.toFixed(2)}</p>
+    <p><b>Utilities:</b> $${data.utilitiesTotal.toFixed(2)}</p>
 
-    <p><b>Pet Rent:</b> $${petRent.toFixed(2)}</p>
+    <p><b>Pet Rent:</b> $${data.petRent.toFixed(2)}</p>
 
-    <p><b>Pet Deposit:</b> $${petDeposit.toFixed(2)}</p>
+    <p><b>Pet Deposit:</b> $${data.petDeposit.toFixed(2)}</p>
 
     <hr>
 
-    <h2>Total Due: $${total.toFixed(2)}</h2>
+    <h2>Total Due: $${data.total.toFixed(2)}</h2>
   `;
 }
 
