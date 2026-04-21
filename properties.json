@@ -1,1 +1,17 @@
-
+{
+  "Sunset Apartments": {
+    "utilities": 150,
+    "petRent": 40,
+    "petDeposit": 300
+  },
+  "Greenwood Villas": {
+    "utilities": 95,
+    "petRent": 25,
+    "petDeposit": 250
+  },
+  "City Heights": {
+    "utilities": 180,
+    "petRent": 50,
+    "petDeposit": 350
+  }
+}
